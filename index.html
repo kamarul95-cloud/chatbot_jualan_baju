@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Urusetia Jualan - Chatbot WhatsApp</title>
+    <style>
+        /* Gaya Asas Tema WhatsApp - Versi Polished */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #ECE5DD; /* Latar belakang luar */
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            min-height: 100vh;
+        }
+
+        .chat-container {
+            width: 100%;
+            max-width: 600px;
+            height: 100vh;
+            background-color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            position: relative; /* Penting untuk typing indicator */
+        }
+        
+        /* Latar belakang Chatbox dengan Corak WhatsApp Terkini */
+        .chat-box {
+            padding: 10px;
+            overflow-y: auto;
+            flex-grow: 1;
+            background-color: #E6DDD5; /* Warna asas */
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10"><rect width="10" height="10" fill="none"/><path fill="%23d0c3b9" d="M0 0h1v1H0zM1 1h1v1H1zM2 2h1v1H2zM3 3h1v1H3zM4 4h1v1H4zM5 5h1v1H5zM6 6h1v1H6zM7 7h1v1H7zM8 8h1v1H8zM9 9h1v1H9zM1 0h1v1H1zM2 1h1v1H2zM3 2h1v1H3zM4 3h1v1H4zM5 4h1v1H5zM6 5h1v1H6zM7 6h1v1H7zM8 7h1v1H8zM9 8h1v1H9zM0 9h1v1H0z" opacity=".1"/></svg>');
+        }
+
+        .chat-header {
+            background-color: #075E54;
+            color: white;
+            padding: 15px;
+            font-size: 1.1em;
+            display: flex;
+            align-items: center;
+        }
+
+        .chat-header h2 {
+            margin: 0;
+            font-size: 1em;
+            margin-left: 10px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 9px 12px;
+            border-radius: 8px;
+            margin-bottom: 7px;
+            word-wrap: break-word;
+            clear: both;
+            box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.13);
+            line-height: 1.4; /* Kelihatan lebih kemas */
+        }
+
+        .bot-message {
+            background-color: #DCF8C6; 
+            float: left;
+            border-bottom-left-radius: 0; /* WhatsApp Style */
+        }
+
+        .user-message {
+            background-color: #E3F2FD; 
+            float: right;
+            border-bottom-right-radius: 0; /* WhatsApp Style */
+            text-align: left;
+        }
+
+        .input-area {
+            padding: 8px;
+            background-color: #f0f0f0;
+            display: flex;
+            flex-wrap: wrap; 
+            gap: 5px;
+            border-top: 1px solid #eee;
+            align-items: center;
+        }
+
+        /* Gaya Typing Indicator */
+        #typing-indicator {
+            float: left;
+            margin: 0 10px 7px 10px; /* Jarak dengan input/chatbox */
+            display: flex;
+            align-items: center;
+            padding: 9px 12px;
+            background-color: #DCF8C6;
+            border-radius: 8px;
+            border-bottom-left-radius: 0;
+            font-style: italic;
+            color: #555;
+            box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.13);
+            width: fit-content;
+        }
+
+        .dot {
+            height: 6px;
+            width: 6px;
+            background-color: #555;
+            border-radius: 50%;
+            display: inline-block;
+            margin-left: 2px;
+            animation: bounce 1.2s infinite ease-in-out;
+        }
+
+        .dot:nth-child(2) { animation-delay: 0.4s; }
+        .dot:nth-child(3) { animation-delay: 0.8s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-5px); }
+        }
+
+        /* Gaya Input dan Button */
+        .input-area input[type="text"] {
+            flex-grow: 1;
+            padding: 10px;
+            border: none; /* Buang border untuk nampak smooth */
+            border-radius: 20px;
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+        
+        .input-area button, .choice-button {
+            background-color: #075E54; 
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+        
+        .choice-button {
+            margin-top: 5px;
+            flex: 1 1 45%; 
+        }
+        
+        .choice-button.red {
+            background-color: #d32525;
+        }
+        
+        /* Gaya lain */
+        .form-input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 5px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        
+        @media (max-width: 600px) {
+            .chat-container {
+                border-radius: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="chat-container">
+    <div class="chat-header">
+        <span style="font-size: 24px;">💬</span>
+        <h2>Urusetia Jualan</h2>
+    </div>
+    <div class="chat-box" id="chat-box">
+        </div>
+    
+    <div id="typing-indicator" style="display:none;">
+        Urusetia Jualan sedang menaip
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+    </div>
+    
+    <div class="input-area" id="input-area">
+        </div>
+</div>
+
+<script>
+    // ** PEMBOLEH UBAH DATA **
+    let step = 1;
+    let isProcessing = false; 
+    let userData = {
+        name: "",
+        sizeQty: [], 
+        phone: ""
+    };
+    const chatBox = document.getElementById('chat-box');
+    const inputArea = document.getElementById('input-area');
+    const typingIndicator = document.getElementById('typing-indicator');
+
+    // ** FUNGSI BANTUAN **
+
+    function showTypingIndicator() {
+        typingIndicator.style.display = 'flex';
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function hideTypingIndicator() {
+        typingIndicator.style.display = 'none';
+    }
+
+    // Fungsi untuk menambah mesej ke kotak sembang (dengan sokongan Markdown **)
+    function addMessage(text, type, delay = 500) {
+        return new Promise(resolve => {
+            setTimeout(() => {
+                
+                // PENUKARAN MARKDOWN: **teks** kepada <strong>teks</strong> (Bold)
+                const formattedText = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                
+                const msgDiv = document.createElement('div');
+                msgDiv.classList.add('message', type);
+                msgDiv.innerHTML = formattedText;
+                chatBox.appendChild(msgDiv);
+                chatBox.scrollTop = chatBox.scrollHeight; 
+                resolve();
+            }, delay);
+        });
+    }
+
+    // Fungsi utama untuk memaparkan soalan seterusnya
+    async function nextStep() {
+        if (isProcessing) return;
+        isProcessing = true;
+        
+        inputArea.innerHTML = '';
+
+        // Tunjuk animasi menaip
+        if (step !== 1 || userData.name !== "") {
+             showTypingIndicator();
+             await new Promise(r => setTimeout(r, 1500)); // Delay 1.5 saat 
+             hideTypingIndicator();
+        }
+        
+        switch (step) {
+            case 1:
+                await addMessage('Hai nak order baju ke, boleh berikan nama?', 'bot-message');
+                inputArea.innerHTML = `
+                    <input type="text" id="name-input" placeholder="Masukkan Nama Anda" class="form-input">
+                    <button onclick="submitName()">Hantar</button>
+                `;
+                document.getElementById('name-input').focus();
+                break;
+            
+            case 2:
+                await addMessage(`Baik **${userData.name}**, baju saiz apa? Sila pilih saiz dan masukkan kuantiti.`, 'bot-message');
+                inputArea.innerHTML = `
+                    <div id="size-options" style="width: 100%; margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 5px;">
+                        <button class="choice-button" onclick="addSizeInput('XS')">XS</button>
+                        <button class="choice-button" onclick="addSizeInput('S')">S</button>
+                        <button class="choice-button" onclick="addSizeInput('M')">M</button>
+                        <button class="choice-button" onclick="addSizeInput('L')">L</button>
+                        <button class="choice-button" onclick="addSizeInput('XL')">XL</button>
+                        <button class="choice-button" onclick="addSizeInput('2XL')">2XL</button>
+                        <button class="choice-button" onclick="addSizeInput('3XL')">3XL</button>
+                        <button class="choice-button" onclick="toggleCustomSizeInput()">Lain Saiz (Isi)</button>
+                    </div>
+                    <div id="custom-size-area" style="width: 100%; display: none; margin-bottom: 10px;">
+                        <input type="text" id="custom-size-input" placeholder="Isi saiz lain (cth: 4XL)" class="form-input" style="width: 100%;">
+                        <input type="number" id="custom-qty-input" placeholder="Kuantiti" min="1" value="1" class="form-input" style="width: 100%;">
+                        <button onclick="addCustomSize()" class="choice-button" style="width: 100%;">Tambah Saiz</button>
+                    </div>
+                    <div id="selected-sizes" style="width: 100%; margin-bottom: 10px;">
+                        </div>
+                    <button style="width: 100%;" onclick="submitSizes()">Sahkan Saiz dan Kuantiti</button>
+                `;
+                updateSelectedSizesDisplay(); 
+                break;
+            
+            case 3:
+                await addMessage(`Tolong berikan nombor telefon **${userData.name}**?`, 'bot-message');
+                inputArea.innerHTML = `
+                    <input type="text" id="phone-input" placeholder="Masukkan Nombor Telefon" class="form-input">
+                    <button onclick="submitPhone()">Hantar</button>
+                `;
+                document.getElementById('phone-input').focus();
+                break;
+                
+            case 4:
+                await addMessage(`**${userData.name}** sila buat pembayaran di <a href="https://toyyibpay.com" target="_blank" style="color: #25D366; text-decoration: none; font-weight: bold;">Toyyibpay.com</a>. (Link ini adalah *dummy*).`, 'bot-message');
+                inputArea.innerHTML = `
+                    <div class="upload-area" style="width: 100%;">
+                        <label for="receipt-upload" class="choice-button" style="background-color: #34B7F1; width: 100%; text-align: center;">Upload Resit Selepas Pembayaran</label>
+                        <input type="file" id="receipt-upload" accept="image/*,application/pdf" style="display: none;">
+                        <span id="file-name" style="font-size: 0.9em; width: 100%;">Tiada fail dipilih.</span>
+                        <button onclick="submitReceipt()" style="width: 100%;">Pembayaran Selesai / Skip</button>
+                    </div>
+                `;
+                document.getElementById('receipt-upload').addEventListener('change', function(e) {
+                    document.getElementById('file-name').textContent = e.target.files.length > 0 ? e.target.files[0].name : 'Tiada fail dipilih.';
+                });
+                break;
+
+            case 5:
+                const sizeSummary = userData.sizeQty.map(item => {
+                    const size = item.size === 'Lain-lain' ? `Lain: ${item.customSize}` : item.size;
+                    return `**Saiz ${size}**: ${item.qty} unit`;
+                }).join('<br>');
+                
+                await addMessage(`Terima kasih **${userData.name}** kerana telah menempah dengan kami, ini order anda sila sahkan:`, 'bot-message');
+                await addMessage(`
+                    **Nama**: ${userData.name}<br>
+                    **Saiz Baju dan Kuantiti**:<br>${sizeSummary}<br>
+                    **Nombor Telefon**: ${userData.phone}
+                `, 'bot-message', 100); 
+                
+                inputArea.innerHTML = `
+                    <button class="choice-button" onclick="confirmOrder(true)">Ya, Betul</button>
+                    <button class="choice-button red" onclick="confirmOrder(false)">Tidak, Saya Mahu Mengeditnya</button>
+                `;
+                break;
+
+            case 6:
+                await addMessage(`Baik Order **${userData.name}** Diterima.`, 'bot-message');
+                await addMessage(`Sebarang pertanyaan berhubung dengan Syamil (+60 10-527 2343).`, 'bot-message');
+                
+                const whatsappMessage = `Assalamualaikum, saya ${userData.name} ingin bertanya mengenai tempahan baju saya.`;
+                inputArea.innerHTML = `
+                    <a href="https://wa.me/60105272343?text=${encodeURIComponent(whatsappMessage)}" target="_blank" class="choice-button" style="background-color: #25D366; text-decoration: none; text-align: center; width: 100%;">
+                        <span style="vertical-align: middle; margin-right: 5px;">📞</span>
+                        WhatsApp Syamil
+                    </a>
+                `;
+                break;
+        }
+        isProcessing = false;
+    }
+
+    // ** FUNGSI PENGENDALIAN INPUT ** (Logik sama, hanya dipendekkan di sini)
+
+    function submitName() {
+        if (isProcessing) return;
+        const nameInput = document.getElementById('name-input');
+        const name = nameInput.value.trim();
+        if (name) {
+            userData.name = name;
+            addMessage(name, 'user-message', 10);
+            step = 2;
+            nextStep();
+        } else {
+            alert('Sila masukkan nama anda.');
+        }
+    }
+    
+    function toggleCustomSizeInput() {
+        const customArea = document.getElementById('custom-size-area');
+        customArea.style.display = customArea.style.display === 'none' ? 'block' : 'none';
+        if (customArea.style.display === 'block') { document.getElementById('custom-size-input').focus(); }
+    }
+    
+    function addSizeInput(size) {
+        let qty;
+        const inputQty = prompt(`Masukkan kuantiti untuk saiz ${size}:`, "1");
+        if (inputQty !== null) {
+            qty = parseInt(inputQty);
+            if (isNaN(qty) || qty < 1) { alert("Kuantiti tidak sah."); return; }
+            userData.sizeQty.push({ size: size, qty: qty });
+            updateSelectedSizesDisplay();
+        }
+    }
+
+    function addCustomSize() {
+        const size = document.getElementById('custom-size-input').value.trim();
+        const qty = parseInt(document.getElementById('custom-qty-input').value);
+        if (!size || isNaN(qty) || qty < 1) { alert("Sila isi saiz lain dan kuantiti yang sah."); return; }
+        
+        userData.sizeQty.push({ size: 'Lain-lain', customSize: size, qty: qty });
+        document.getElementById('custom-size-input').value = "";
+        document.getElementById('custom-qty-input').value = "1";
+        toggleCustomSizeInput();
+        updateSelectedSizesDisplay();
+    }
+    
+    function updateSelectedSizesDisplay() {
+        const selectedDiv = document.getElementById('selected-sizes');
+        if (userData.sizeQty.length > 0) {
+            selectedDiv.innerHTML = '<span style="font-weight: bold; display: block; margin-bottom: 5px;">Pilihan saiz anda:</span>' + userData.sizeQty.map((item, index) => {
+                const sizeText = item.size === 'Lain-lain' ? `Lain: ${item.customSize}` : item.size;
+                return `<span style="display: flex; justify-content: space-between; align-items: center; background-color: #f0f0f0; padding: 5px; border-radius: 5px; margin-bottom: 5px; font-size: 0.9em;">
+                    ${sizeText} - ${item.qty} unit 
+                    <button onclick="removeSize(${index})" style="background-color: #ff4d4d; color: white; border: none; padding: 2px 5px; border-radius: 3px; font-size: 0.8em;">X</button>
+                </span>`;
+            }).join('');
+        } else { selectedDiv.innerHTML = ''; }
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+    
+    function removeSize(index) {
+        userData.sizeQty.splice(index, 1);
+        updateSelectedSizesDisplay();
+    }
+    
+    function submitSizes() {
+        if (isProcessing) return;
+        if (userData.sizeQty.length > 0) {
+            const summary = userData.sizeQty.map(item => {
+                const size = item.size === 'Lain-lain' ? `Lain: ${item.customSize}` : item.size;
+                return `${size} (${item.qty} unit)`;
+            }).join(', ');
+            addMessage(`Saiz dan Kuantiti: ${summary}`, 'user-message', 10);
+            step = 3;
+            nextStep();
+        } else { alert('Sila pilih sekurang-kurangnya satu saiz dan kuantiti.'); }
+    }
+    
+    function submitPhone() {
+        if (isProcessing) return;
+        const phoneInput = document.getElementById('phone-input');
+        const phone = phoneInput.value.trim();
+        if (phone && /^\+?[0-9\s-]{7,15}$/.test(phone)) {
+            userData.phone = phone;
+            addMessage(phone, 'user-message', 10);
+            step = 4;
+            nextStep();
+        } else { alert('Sila masukkan nombor telefon yang sah.'); }
+    }
+    
+    function submitReceipt() {
+        if (isProcessing) return;
+        const fileName = document.getElementById('file-name').textContent;
+        let message = "Resit: ";
+        if (fileName === "Tiada fail dipilih.") {
+            message += "Tiada resit di *upload* (Sila lengkapkan pembayaran nanti).";
+        } else {
+            message += `${fileName} berjaya di *upload*.`;
+        }
+        addMessage(message, 'user-message', 10);
+        step = 5;
+        nextStep();
+    }
+    
+    function confirmOrder(isConfirmed) {
+        if (isProcessing) return;
+        if (isConfirmed) {
+            addMessage('Ya, Betul', 'user-message', 10);
+            step = 6;
+            nextStep();
+        } else {
+            addMessage('Tidak, Saya Mahu Mengeditnya', 'user-message', 10);
+            
+            // Reset data (kecuali nama)
+            userData.sizeQty = []; 
+            userData.phone = ""; 
+            step = 1; 
+            
+            addMessage(`Baik **${userData.name}**, kita kembali ke soalan pertama untuk edit order.`, 'bot-message', 500).then(() => {
+                nextStep();
+            });
+        }
+    }
+
+    // ** INICIALISASI **
+    window.onload = function() {
+        nextStep();
+    };
+</script>
+
+</body>
+</html>
