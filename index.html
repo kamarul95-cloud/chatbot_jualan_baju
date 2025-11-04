@@ -8,7 +8,7 @@
         /* Gaya Asas Tema WhatsApp - Versi Polished */
         body {
             font-family: Arial, sans-serif;
-            background-color: #ECE5DD; /* Latar belakang luar */
+            background-color: #ECE5DD;
             margin: 0;
             padding: 0;
             display: flex;
@@ -26,7 +26,7 @@
             flex-direction: column;
             overflow: hidden;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            position: relative; /* Penting untuk typing indicator */
+            position: relative;
         }
         
         /* Latar belakang Chatbox dengan Corak WhatsApp Terkini */
@@ -34,7 +34,7 @@
             padding: 10px;
             overflow-y: auto;
             flex-grow: 1;
-            background-color: #E6DDD5; /* Warna asas */
+            background-color: #E6DDD5;
             background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10"><rect width="10" height="10" fill="none"/><path fill="%23d0c3b9" d="M0 0h1v1H0zM1 1h1v1H1zM2 2h1v1H2zM3 3h1v1H3zM4 4h1v1H4zM5 5h1v1H5zM6 6h1v1H6zM7 7h1v1H7zM8 8h1v1H8zM9 9h1v1H9zM1 0h1v1H1zM2 1h1v1H2zM3 2h1v1H3zM4 3h1v1H4zM5 4h1v1H5zM6 5h1v1H6zM7 6h1v1H7zM8 7h1v1H8zM9 8h1v1H9zM0 9h1v1H0z" opacity=".1"/></svg>');
         }
 
@@ -61,19 +61,19 @@
             word-wrap: break-word;
             clear: both;
             box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.13);
-            line-height: 1.4; /* Kelihatan lebih kemas */
+            line-height: 1.4;
         }
 
         .bot-message {
             background-color: #DCF8C6; 
             float: left;
-            border-bottom-left-radius: 0; /* WhatsApp Style */
+            border-bottom-left-radius: 0;
         }
 
         .user-message {
             background-color: #E3F2FD; 
             float: right;
-            border-bottom-right-radius: 0; /* WhatsApp Style */
+            border-bottom-right-radius: 0;
             text-align: left;
         }
 
@@ -90,7 +90,7 @@
         /* Gaya Typing Indicator */
         #typing-indicator {
             float: left;
-            margin: 0 10px 7px 10px; /* Jarak dengan input/chatbox */
+            margin: 0 10px 7px 10px;
             display: flex;
             align-items: center;
             padding: 9px 12px;
@@ -125,7 +125,7 @@
         .input-area input[type="text"] {
             flex-grow: 1;
             padding: 10px;
-            border: none; /* Buang border untuk nampak smooth */
+            border: none;
             border-radius: 20px;
             box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
         }
@@ -150,7 +150,6 @@
             background-color: #d32525;
         }
         
-        /* Gaya lain */
         .form-input {
             width: 100%;
             padding: 8px;
@@ -189,6 +188,9 @@
 </div>
 
 <script>
+    // 🔑 KEMAS KINI UTAMA: URL GOOGLE APPS SCRIPT ANDA
+    const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbyxedNIrj6ijIPDuNyEJaW47Nzyr59qDHkKkDoqkalJCdABH5fjNHHRbzftOFSEIomOgg/exec'; 
+
     // ** PEMBOLEH UBAH DATA **
     let step = 1;
     let isProcessing = false; 
@@ -230,17 +232,87 @@
         });
     }
 
-    // Fungsi utama untuk memaparkan soalan seterusnya
+    // ** FUNGSI INTEGRASI APPS SCRIPT **
+
+    // 1. Format Data ke Objek Sheet
+    function formatOrderDataForSheet(data) {
+        const sizeCounts = {
+            'XS': 0, 'S': 0, 'M': 0, 'L': 0, 'XL': 0, '2XL': 0, '3XL': 0
+        };
+        let totalQuantity = 0;
+        let customSizes = [];
+
+        data.sizeQty.forEach(item => {
+            if (sizeCounts.hasOwnProperty(item.size)) {
+                sizeCounts[item.size] = item.qty;
+            } else if (item.size === 'Lain-lain') {
+                customSizes.push(`${item.customSize} (${item.qty} unit)`);
+            }
+            totalQuantity += item.qty;
+        });
+
+        // Struktur data yang SEPADAN dengan HEADER dalam Google Sheet
+        const formattedData = {
+            'ID Tempahan': `JUALAN-${Date.now().toString().slice(-5)}`,
+            'Nama Pelanggan': data.name,
+            'Nombor Telefon': data.phone,
+            'Tarikh Tempahan': new Date().toLocaleString('ms-MY'),
+            
+            'Saiz XS': sizeCounts['XS'],
+            'Saiz S': sizeCounts['S'],
+            'Saiz M': sizeCounts['M'],
+            'Saiz L': sizeCounts['L'],
+            'Saiz XL': sizeCounts['XL'],
+            'Saiz 2XL': sizeCounts['2XL'],
+            'Saiz 3XL': sizeCounts['3XL'],
+            'Saiz Lain (Spesifikasi)': customSizes.join('; ') || '-',
+            'Jumlah Kuantiti (Total)': totalQuantity,
+            
+            // Status awal order
+            'Status Pembayaran': 'Menunggu Pembayaran', 
+            'Nama Fail Resit': 'Belum diterima'
+        };
+
+        return formattedData;
+    }
+    
+    // 2. Hantar Data ke Apps Script URL
+    async function sendDataToSheet(data) {
+        console.log("Menghantar data order ke Apps Script:", data);
+        
+        try {
+            const response = await fetch(GOOGLE_SHEET_URL, {
+                method: 'POST',
+                mode: 'no-cors', // Penting untuk Apps Script tanpa configuration headers
+                cache: 'no-cache',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+            
+            // Dalam mode 'no-cors', kita tidak boleh baca respons, tetapi anggap berjaya jika tiada error network.
+            console.log("Percubaan penghantaran data ke Sheet selesai. Semak Google Sheet anda.");
+            return true; 
+
+        } catch (error) {
+            console.error("Gagal menghantar data ke Google Sheet:", error);
+            alert("⚠️ Ralat: Gagal merekod order ke sheet. Sila hubungi Syamil.");
+            return false;
+        }
+    }
+
+
+    // ** FUNGSI UTAMA CHATBOT **
     async function nextStep() {
         if (isProcessing) return;
         isProcessing = true;
         
         inputArea.innerHTML = '';
 
-        // Tunjuk animasi menaip
         if (step !== 1 || userData.name !== "") {
              showTypingIndicator();
-             await new Promise(r => setTimeout(r, 1500)); // Delay 1.5 saat 
+             await new Promise(r => setTimeout(r, 1500)); 
              hideTypingIndicator();
         }
         
@@ -323,7 +395,7 @@
                 break;
 
             case 6:
-                await addMessage(`Baik Order **${userData.name}** Diterima.`, 'bot-message');
+                await addMessage(`Baik Order **${userData.name}** Diterima. Order anda sedang diproses.`, 'bot-message');
                 await addMessage(`Sebarang pertanyaan berhubung dengan Syamil (+60 10-527 2343).`, 'bot-message');
                 
                 const whatsappMessage = `Assalamualaikum, saya ${userData.name} ingin bertanya mengenai tempahan baju saya.`;
@@ -338,8 +410,8 @@
         isProcessing = false;
     }
 
-    // ** FUNGSI PENGENDALIAN INPUT ** (Logik sama, hanya dipendekkan di sini)
-
+    // ** FUNGSI PENGENDALIAN INPUT **
+    
     function submitName() {
         if (isProcessing) return;
         const nameInput = document.getElementById('name-input');
@@ -441,16 +513,25 @@
         nextStep();
     }
     
-    function confirmOrder(isConfirmed) {
+    // KEMAS KINI UTAMA: Tukar ke async dan panggil sendDataToSheet
+    async function confirmOrder(isConfirmed) {
         if (isProcessing) return;
         if (isConfirmed) {
             addMessage('Ya, Betul', 'user-message', 10);
+            
+            // 1. Format Data
+            const finalOrderData = formatOrderDataForSheet(userData);
+            
+            // 2. Hantar Data ke Google Sheet (Tunggu sehingga selesai)
+            showTypingIndicator();
+            await sendDataToSheet(finalOrderData); 
+            hideTypingIndicator();
+            
             step = 6;
             nextStep();
         } else {
             addMessage('Tidak, Saya Mahu Mengeditnya', 'user-message', 10);
             
-            // Reset data (kecuali nama)
             userData.sizeQty = []; 
             userData.phone = ""; 
             step = 1; 
