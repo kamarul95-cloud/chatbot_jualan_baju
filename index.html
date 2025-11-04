@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Urusetia Jualan - Chatbot WhatsApp</title>
     <style>
-        /* Gaya Asas Tema WhatsApp - Versi Polished */
+        /* Gaya CSS Kekal Sama */
+        /* ... [CSS di sini kekal sama seperti sebelum ini] ... */
         body {
             font-family: Arial, sans-serif;
             background-color: #ECE5DD;
@@ -29,7 +30,6 @@
             position: relative;
         }
         
-        /* Latar belakang Chatbox dengan Corak WhatsApp Terkini */
         .chat-box {
             padding: 10px;
             overflow-y: auto;
@@ -87,7 +87,6 @@
             align-items: center;
         }
 
-        /* Gaya Typing Indicator */
         #typing-indicator {
             float: left;
             margin: 0 10px 7px 10px;
@@ -121,7 +120,6 @@
             40% { transform: translateY(-5px); }
         }
 
-        /* Gaya Input dan Button */
         .input-area input[type="text"] {
             flex-grow: 1;
             padding: 10px;
@@ -194,6 +192,7 @@
     // ** PEMBOLEH UBAH DATA **
     let step = 1;
     let isProcessing = false; 
+    let orderId = ""; // KEMAS KINI: Untuk simpan ID Tempahan
     let userData = {
         name: "",
         sizeQty: [], 
@@ -214,14 +213,10 @@
         typingIndicator.style.display = 'none';
     }
 
-    // Fungsi untuk menambah mesej ke kotak sembang (dengan sokongan Markdown **)
     function addMessage(text, type, delay = 500) {
         return new Promise(resolve => {
             setTimeout(() => {
-                
-                // PENUKARAN MARKDOWN: **teks** kepada <strong>teks</strong> (Bold)
                 const formattedText = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                
                 const msgDiv = document.createElement('div');
                 msgDiv.classList.add('message', type);
                 msgDiv.innerHTML = formattedText;
@@ -234,7 +229,6 @@
 
     // ** FUNGSI INTEGRASI APPS SCRIPT **
 
-    // 1. Format Data ke Objek Sheet
     function formatOrderDataForSheet(data) {
         const sizeCounts = {
             'XS': 0, 'S': 0, 'M': 0, 'L': 0, 'XL': 0, '2XL': 0, '3XL': 0
@@ -251,9 +245,12 @@
             totalQuantity += item.qty;
         });
 
-        // Struktur data yang SEPADAN dengan HEADER dalam Google Sheet
+        // Cipta ID tempahan dan SIMPAN ke pembolehubah global
+        const newOrderId = `JUALAN-${Date.now().toString().slice(-5)}`;
+        orderId = newOrderId; // <<< KEMAS KINI: Simpan ID untuk WhatsApp
+        
         const formattedData = {
-            'ID Tempahan': `JUALAN-${Date.now().toString().slice(-5)}`,
+            'ID Tempahan': newOrderId,
             'Nama Pelanggan': data.name,
             'Nombor Telefon': data.phone,
             'Tarikh Tempahan': new Date().toLocaleString('ms-MY'),
@@ -268,7 +265,6 @@
             'Saiz Lain (Spesifikasi)': customSizes.join('; ') || '-',
             'Jumlah Kuantiti (Total)': totalQuantity,
             
-            // Status awal order
             'Status Pembayaran': 'Menunggu Pembayaran', 
             'Nama Fail Resit': 'Belum diterima'
         };
@@ -276,14 +272,13 @@
         return formattedData;
     }
     
-    // 2. Hantar Data ke Apps Script URL
     async function sendDataToSheet(data) {
         console.log("Menghantar data order ke Apps Script:", data);
         
         try {
             const response = await fetch(GOOGLE_SHEET_URL, {
                 method: 'POST',
-                mode: 'no-cors', // Penting untuk Apps Script tanpa configuration headers
+                mode: 'no-cors',
                 cache: 'no-cache',
                 headers: {
                     'Content-Type': 'application/json'
@@ -291,7 +286,6 @@
                 body: JSON.stringify(data)
             });
             
-            // Dalam mode 'no-cors', kita tidak boleh baca respons, tetapi anggap berjaya jika tiada error network.
             console.log("Percubaan penghantaran data ke Sheet selesai. Semak Google Sheet anda.");
             return true; 
 
@@ -317,6 +311,9 @@
         }
         
         switch (step) {
+            // Case 1 hingga 5 kekal sama
+            // ... (logik untuk case 1, 2, 3, 4, 5) ...
+            
             case 1:
                 await addMessage('Hai nak order baju ke, boleh berikan nama?', 'bot-message');
                 inputArea.innerHTML = `
@@ -398,7 +395,9 @@
                 await addMessage(`Baik Order **${userData.name}** Diterima. Order anda sedang diproses.`, 'bot-message');
                 await addMessage(`Sebarang pertanyaan berhubung dengan Syamil (+60 10-527 2343).`, 'bot-message');
                 
-                const whatsappMessage = `Assalamualaikum, saya ${userData.name} ingin bertanya mengenai tempahan baju saya.`;
+                // KEMAS KINI: Guna orderId yang disimpan
+                const whatsappMessage = `Assalamualaikum, saya ${userData.name} ingin bertanya mengenai tempahan baju saya (ID Order: ${orderId}).`; 
+                
                 inputArea.innerHTML = `
                     <a href="https://wa.me/60105272343?text=${encodeURIComponent(whatsappMessage)}" target="_blank" class="choice-button" style="background-color: #25D366; text-decoration: none; text-align: center; width: 100%;">
                         <span style="vertical-align: middle; margin-right: 5px;">📞</span>
@@ -410,8 +409,7 @@
         isProcessing = false;
     }
 
-    // ** FUNGSI PENGENDALIAN INPUT **
-    
+    // ** FUNGSI PENGENDALIAN INPUT ** (Kekal sama)
     function submitName() {
         if (isProcessing) return;
         const nameInput = document.getElementById('name-input');
@@ -513,13 +511,12 @@
         nextStep();
     }
     
-    // KEMAS KINI UTAMA: Tukar ke async dan panggil sendDataToSheet
     async function confirmOrder(isConfirmed) {
         if (isProcessing) return;
         if (isConfirmed) {
             addMessage('Ya, Betul', 'user-message', 10);
             
-            // 1. Format Data
+            // 1. Format Data (Ini menjana dan menyimpan orderId)
             const finalOrderData = formatOrderDataForSheet(userData);
             
             // 2. Hantar Data ke Google Sheet (Tunggu sehingga selesai)
