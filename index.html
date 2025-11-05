@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ms">
 <head>
@@ -359,15 +360,95 @@
     }
     
     // ** FUNGSI MUAT TURUN QR CODE BARU **
-    function downloadQrCode() {
-        const link = document.createElement('a');
-        link.href = DUMMY_QR_CODE_URL;
-        link.download = 'QR_Pembayaran.jpg';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        alert("QR Code telah dimuat turun ke galeri/folder anda. Sila gunakan imej ini untuk imbasan dalam aplikasi perbankan.");
+// Gantikan fungsi lama dengan fungsi ini
+async function downloadQrCode() {
+    // Nama fail yang akan disimpan
+    const filename = 'QR_Pembayaran.jpg';
+
+    // 1) Cuba fetch imej sebagai blob dan trigger download (ideal pada desktop & Android)
+    try {
+        const resp = await fetch(DUMMY_QR_CODE_URL, { mode: 'cors', cache: 'no-cache' });
+        if (resp.ok) {
+            const blob = await resp.blob();
+            // Jika blob kecil/tiada type, fallback type kepada image/jpeg
+            const blobType = blob.type || 'image/jpeg';
+            const objectUrl = URL.createObjectURL(new Blob([blob], { type: blobType }));
+
+            const a = document.createElement('a');
+            a.href = objectUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+
+            // revoke after short delay to ensure download started
+            setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+
+            alert('QR Code telah dimuat turun ke folder Muat Turun anda.');
+            return;
+        } else {
+            throw new Error('Fetch responded with non-OK status: ' + resp.status);
+        }
+    } catch (err) {
+        console.warn('Fetch blob gagal, cuba fallback canvas method:', err);
     }
+
+    // 2) Fallback: load imej ke canvas dan convert ke blob (berguna jika fetch terhalang tapi CORS benarkan img.crossOrigin)
+    try {
+        await new Promise((resolve, reject) => {
+            const img = new Image();
+            // cuba set crossOrigin supaya canvas tidak ter-block (bergantung pada server header)
+            img.crossOrigin = 'anonymous';
+            img.onload = () => {
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.naturalWidth || img.width;
+                    canvas.height = img.naturalHeight || img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+
+                    // canvas -> blob
+                    canvas.toBlob((blob) => {
+                        if (!blob) {
+                            reject(new Error('canvas.toBlob returned null'));
+                            return;
+                        }
+                        const objectUrl = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = objectUrl;
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+                        resolve();
+                    }, 'image/jpeg', 0.95);
+                } catch (e) {
+                    reject(e);
+                }
+            };
+            img.onerror = (e) => reject(e);
+            img.src = DUMMY_QR_CODE_URL + (DUMMY_QR_CODE_URL.indexOf('?') === -1 ? '?_=' : '&_=') + Date.now();
+            // cache buster to avoid cached CORS issues sometimes
+        });
+        alert('QR Code telah disimpan (semak folder Muat Turun).');
+        return;
+    } catch (err) {
+        console.warn('Canvas fallback gagal:', err);
+    }
+
+    // 3) Last resort: buka imej di tab baru dan beri arahan (terutama untuk iOS Safari)
+    try {
+        window.open(DUMMY_QR_CODE_URL, '_blank');
+    } catch (e) {
+        // fallback lebih kasar
+        location.href = DUMMY_QR_CODE_URL;
+    }
+
+    // Beri panduan kepada pengguna telefon
+    alert('Tidak dapat muat turun automatik pada peranti ini. Imej dibuka di tab baru — tekan & tahan (atau ketuk) imej lalu pilih "Simpan Imej" untuk simpan ke galeri.');
+}
+
 
 
     // ** FUNGSI UTAMA CHATBOT **
