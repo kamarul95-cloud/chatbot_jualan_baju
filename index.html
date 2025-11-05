@@ -5,8 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Urusetia Jualan - Chatbot WhatsApp</title>
     <style>
-        /* Gaya CSS Kekal Sama */
-        /* ... [CSS di sini kekal sama seperti sebelum ini] ... */
+        /* --- GAYA CSS (Kekal Sama) --- */
         body {
             font-family: Arial, sans-serif;
             background-color: #ECE5DD;
@@ -35,6 +34,7 @@
             overflow-y: auto;
             flex-grow: 1;
             background-color: #E6DDD5;
+            /* Background pattern WhatsApp */
             background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10"><rect width="10" height="10" fill="none"/><path fill="%23d0c3b9" d="M0 0h1v1H0zM1 1h1v1H1zM2 2h1v1H2zM3 3h1v1H3zM4 4h1v1H4zM5 5h1v1H5zM6 6h1v1H6zM7 7h1v1H7zM8 8h1v1H8zM9 9h1v1H9zM1 0h1v1H1zM2 1h1v1H2zM3 2h1v1H3zM4 3h1v1H4zM5 4h1v1H5zM6 5h1v1H6zM7 6h1v1H7zM8 7h1v1H8zM9 8h1v1H9zM0 9h1v1H0z" opacity=".1"/></svg>');
         }
 
@@ -68,6 +68,14 @@
             background-color: #DCF8C6; 
             float: left;
             border-bottom-left-radius: 0;
+        }
+        
+        /* Gaya untuk imej/QR Code */
+        .bot-message img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 5px;
+            margin-top: 5px;
         }
 
         .user-message {
@@ -189,10 +197,17 @@
     // 🔑 KEMAS KINI UTAMA: URL GOOGLE APPS SCRIPT ANDA
     const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbwU0RSESTNpE8I0fEsTfaTBF5zOccvWLp0iLTvMsXwAcZFONroxNjYMK46zoQKDspVjiQ/exec'; 
 
+    // 🔑 KUNCI API IMGBB ANDA
+    const IMGBB_API_KEY = '07c44a986353977c2a4907218d19dc1d'; 
+
+    // 📸 URL Imej QR Code
+    const DUMMY_QR_CODE_URL = 'https://i.ibb.co/jZkFkCTc/IMG-20251105-WA0114.jpg'; 
+
     // ** PEMBOLEH UBAH DATA **
     let step = 1;
     let isProcessing = false; 
-    let orderId = ""; // KEMAS KINI: Untuk simpan ID Tempahan
+    let orderId = ""; 
+    let uploadedReceiptUrl = "Belum diterima"; 
     let userData = {
         name: "",
         sizeQty: [], 
@@ -226,9 +241,20 @@
             }, delay);
         });
     }
+    
+    /**
+     * Pra-muat imej di latar belakang untuk loading yang lebih pantas.
+     */
+    function preloadImage(url) {
+        return new Promise(resolve => {
+            const img = new Image();
+            img.onload = () => resolve();
+            img.onerror = () => resolve(); 
+            img.src = url;
+        });
+    }
 
-    // ** FUNGSI INTEGRASI APPS SCRIPT **
-
+    // ** FUNGSI INTEGRASI APPS SCRIPT & IMGBB (Kekal Sama) **
     function formatOrderDataForSheet(data) {
         const sizeCounts = {
             'XS': 0, 'S': 0, 'M': 0, 'L': 0, 'XL': 0, '2XL': 0, '3XL': 0
@@ -245,9 +271,8 @@
             totalQuantity += item.qty;
         });
 
-        // Cipta ID tempahan dan SIMPAN ke pembolehubah global
         const newOrderId = `JUALAN-${Date.now().toString().slice(-5)}`;
-        orderId = newOrderId; // <<< KEMAS KINI: Simpan ID untuk WhatsApp
+        orderId = newOrderId; 
         
         const formattedData = {
             'ID Tempahan': newOrderId,
@@ -265,8 +290,8 @@
             'Saiz Lain (Spesifikasi)': customSizes.join('; ') || '-',
             'Jumlah Kuantiti (Total)': totalQuantity,
             
-            'Status Pembayaran': 'Menunggu Pembayaran', 
-            'Nama Fail Resit': 'Belum diterima'
+            'Status Pembayaran': uploadedReceiptUrl === 'Belum diterima' ? 'Menunggu Pembayaran' : 'Selesai', 
+            'Nama Fail Resit': uploadedReceiptUrl 
         };
 
         return formattedData;
@@ -296,6 +321,54 @@
         }
     }
 
+    async function uploadReceiptToImgBB(fileObj) {
+        if (!fileObj) return "Tiada resit dimuat naik.";
+
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(fileObj);
+            reader.onload = async () => {
+                const base64Image = reader.result.split(',')[1];
+                
+                const uploadFormData = new FormData();
+                uploadFormData.append("image", base64Image); 
+                uploadFormData.append("name", `resit_${orderId}_${fileObj.name}`); 
+                
+                try {
+                    const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+                        method: 'POST',
+                        body: uploadFormData
+                    });
+
+                    const data = await response.json();
+
+                    if (data && data.data && data.data.url) {
+                        console.log("Resit berjaya dimuat naik. URL:", data.data.url);
+                        resolve(data.data.url);
+                    } else {
+                        console.error("Gagal mendapat URL resit dari ImgBB:", data);
+                        resolve(null);
+                    }
+                } catch (error) {
+                    console.error("Ralat rangkaian ketika memuat naik ke ImgBB:", error);
+                    resolve(null);
+                }
+            };
+            reader.onerror = error => reject(error);
+        });
+    }
+    
+    // ** FUNGSI MUAT TURUN QR CODE BARU **
+    function downloadQrCode() {
+        const link = document.createElement('a');
+        link.href = DUMMY_QR_CODE_URL;
+        link.download = 'QR_Pembayaran.jpg';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        alert("QR Code telah dimuat turun ke galeri/folder anda. Sila gunakan imej ini untuk imbasan dalam aplikasi perbankan.");
+    }
+
 
     // ** FUNGSI UTAMA CHATBOT **
     async function nextStep() {
@@ -305,14 +378,12 @@
         inputArea.innerHTML = '';
 
         if (step !== 1 || userData.name !== "") {
-             showTypingIndicator();
-             await new Promise(r => setTimeout(r, 1500)); 
-             hideTypingIndicator();
+              showTypingIndicator();
+              await new Promise(r => setTimeout(r, 1500)); 
+              hideTypingIndicator();
         }
         
         switch (step) {
-            // Case 1 hingga 5 kekal sama
-            // ... (logik untuk case 1, 2, 3, 4, 5) ...
             
             case 1:
                 await addMessage('Hai nak order baju ke, boleh berikan nama?', 'bot-message');
@@ -324,6 +395,7 @@
                 break;
             
             case 2:
+                // ... (Case 2 Kekal Sama)
                 await addMessage(`Baik **${userData.name}**, baju saiz apa? Sila pilih saiz dan masukkan kuantiti.`, 'bot-message');
                 inputArea.innerHTML = `
                     <div id="size-options" style="width: 100%; margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 5px;">
@@ -349,6 +421,7 @@
                 break;
             
             case 3:
+                // ... (Case 3 Kekal Sama)
                 await addMessage(`Tolong berikan nombor telefon **${userData.name}**?`, 'bot-message');
                 inputArea.innerHTML = `
                     <input type="text" id="phone-input" placeholder="Masukkan Nombor Telefon" class="form-input">
@@ -358,13 +431,27 @@
                 break;
                 
             case 4:
-                await addMessage(`**${userData.name}** sila buat pembayaran di <a href="https://toyyibpay.com" target="_blank" style="color: #25D366; text-decoration: none; font-weight: bold;">Toyyibpay.com</a>. (Link ini adalah *dummy*).`, 'bot-message');
+                // 🚀 KEMAS KINI: Arahan yang lebih baik & Butang Muat Turun
+                await addMessage(`**${userData.name}**, sila buat pembayaran. Kami sedang menyediakan kod pembayaran...`, 'bot-message');
+
+                showTypingIndicator();
+                await preloadImage(DUMMY_QR_CODE_URL); 
+                hideTypingIndicator();
+
+                // Paparkan QR Code
+                await addMessage(`Sila **imbas QR Code** di bawah:`, 'bot-message', 100);
+                await addMessage(`<img src="${DUMMY_QR_CODE_URL}" alt="QR Code Pembayaran">`, 'bot-message', 100);
+
+                // ** BUTANG BARU: Muat Turun untuk Imbasan dalam App Bank **
+                await addMessage(`Anda boleh **muat turun QR Code** ini untuk diimbas dari galeri telefon anda melalui aplikasi perbankan.`, 'bot-message', 100);
+
                 inputArea.innerHTML = `
-                    <div class="upload-area" style="width: 100%;">
-                        <label for="receipt-upload" class="choice-button" style="background-color: #34B7F1; width: 100%; text-align: center;">Upload Resit Selepas Pembayaran</label>
+                    <button onclick="downloadQrCode()" class="choice-button" style="background-color: #34B7F1; width: 100%; text-align: center;">⬇️ Muat Turun QR Code</button>
+                    <div class="upload-area" style="width: 100%; margin-top: 10px;">
+                        <label for="receipt-upload" class="choice-button" style="background-color: #075E54; width: 100%; text-align: center;">Upload Resit Selepas Pembayaran</label>
                         <input type="file" id="receipt-upload" accept="image/*,application/pdf" style="display: none;">
                         <span id="file-name" style="font-size: 0.9em; width: 100%;">Tiada fail dipilih.</span>
-                        <button onclick="submitReceipt()" style="width: 100%;">Pembayaran Selesai / Skip</button>
+                        <button onclick="submitReceipt()" style="width: 100%;">Sahkan Pembayaran / Skip</button>
                     </div>
                 `;
                 document.getElementById('receipt-upload').addEventListener('change', function(e) {
@@ -373,6 +460,7 @@
                 break;
 
             case 5:
+                // ... (Case 5 Kekal Sama)
                 const sizeSummary = userData.sizeQty.map(item => {
                     const size = item.size === 'Lain-lain' ? `Lain: ${item.customSize}` : item.size;
                     return `**Saiz ${size}**: ${item.qty} unit`;
@@ -382,7 +470,8 @@
                 await addMessage(`
                     **Nama**: ${userData.name}<br>
                     **Saiz Baju dan Kuantiti**:<br>${sizeSummary}<br>
-                    **Nombor Telefon**: ${userData.phone}
+                    **Nombor Telefon**: ${userData.phone}<br>
+                    **Resit Pembayaran**: ${uploadedReceiptUrl === 'Belum diterima' ? 'Belum diterima' : `<a href="${uploadedReceiptUrl}" target="_blank">Lihat Resit</a>`}
                 `, 'bot-message', 100); 
                 
                 inputArea.innerHTML = `
@@ -392,10 +481,10 @@
                 break;
 
             case 6:
+                // ... (Case 6 Kekal Sama)
                 await addMessage(`Baik Order **${userData.name}** Diterima. Order anda sedang diproses.`, 'bot-message');
                 await addMessage(`Sebarang pertanyaan berhubung dengan Syamil (+60 10-527 2343).`, 'bot-message');
                 
-                // KEMAS KINI: Guna orderId yang disimpan
                 const whatsappMessage = `Assalamualaikum, saya ${userData.name} ingin bertanya mengenai tempahan baju saya (ID Order: ${orderId}).`; 
                 
                 inputArea.innerHTML = `
@@ -409,7 +498,7 @@
         isProcessing = false;
     }
 
-    // ** FUNGSI PENGENDALIAN INPUT ** (Kekal sama)
+    // ** FUNGSI PENGENDALIAN INPUT (Kekal Sama) **
     function submitName() {
         if (isProcessing) return;
         const nameInput = document.getElementById('name-input');
@@ -497,16 +586,37 @@
         } else { alert('Sila masukkan nombor telefon yang sah.'); }
     }
     
-    function submitReceipt() {
+    async function submitReceipt() { 
         if (isProcessing) return;
-        const fileName = document.getElementById('file-name').textContent;
-        let message = "Resit: ";
-        if (fileName === "Tiada fail dipilih.") {
-            message += "Tiada resit di *upload* (Sila lengkapkan pembayaran nanti).";
+        isProcessing = true;
+
+        const fileInput = document.getElementById('receipt-upload');
+        const file = fileInput.files[0];
+        
+        let userMessageText = "Resit: ";
+        
+        if (file) {
+            userMessageText += `${file.name} sedang dimuat naik...`;
+            addMessage(userMessageText, 'user-message', 10);
+            
+            showTypingIndicator();
+            const url = await uploadReceiptToImgBB(file);
+            hideTypingIndicator();
+
+            if (url) {
+                uploadedReceiptUrl = url; 
+                addMessage(`✅ Resit berjaya dimuat naik: <a href="${url}" target="_blank">Lihat Resit</a>`, 'bot-message', 100);
+            } else {
+                uploadedReceiptUrl = "Gagal Muat Naik Resit";
+                addMessage('⚠️ Gagal muat naik resit. Akan direkod sebagai "Belum diterima".', 'bot-message', 100);
+            }
         } else {
-            message += `${fileName} berjaya di *upload*.`;
+            userMessageText += "Tiada resit di *upload* (Sila lengkapkan pembayaran nanti).";
+            addMessage(userMessageText, 'user-message', 10);
+            uploadedReceiptUrl = "Belum diterima"; 
         }
-        addMessage(message, 'user-message', 10);
+
+        isProcessing = false;
         step = 5;
         nextStep();
     }
@@ -516,10 +626,8 @@
         if (isConfirmed) {
             addMessage('Ya, Betul', 'user-message', 10);
             
-            // 1. Format Data (Ini menjana dan menyimpan orderId)
             const finalOrderData = formatOrderDataForSheet(userData);
             
-            // 2. Hantar Data ke Google Sheet (Tunggu sehingga selesai)
             showTypingIndicator();
             await sendDataToSheet(finalOrderData); 
             hideTypingIndicator();
@@ -531,6 +639,7 @@
             
             userData.sizeQty = []; 
             userData.phone = ""; 
+            uploadedReceiptUrl = "Belum diterima"; 
             step = 1; 
             
             addMessage(`Baik **${userData.name}**, kita kembali ke soalan pertama untuk edit order.`, 'bot-message', 500).then(() => {
@@ -546,4 +655,4 @@
 </script>
 
 </body>
-</html>
+</html>--
